@@ -3,6 +3,7 @@ const socket = io();
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const players = {};
+const enemies = {};
 // No chat/speech functionality
 
 let myId = null;
@@ -11,11 +12,61 @@ const speed = 2;
 // Emoji size (px) for boundary clamping
 const EMOJI_SIZE = 32;
 const keys = {};
+// Default emoji for uninfected players
+const DEFAULT_EMOJI = '😊';
 
+// Timing for countdown (will be set by server)
+let serverStart = Date.now();
+let stageDuration = 60000;
+let totalStages = 3;
 // Receive initial state
 socket.on('init', (data) => {
+  // Set up timing from server
+  if (data.serverStart) serverStart = data.serverStart;
+  if (data.stageDuration) stageDuration = data.stageDuration;
+  if (data.totalStages) totalStages = data.totalStages;
+  // Initialize player and entity states
   myId = data.id;
   Object.assign(players, data.players);
+  Object.assign(enemies, data.enemies);
+});
+
+// New enemy joined
+socket.on('enemyJoined', (data) => {
+  enemies[data.id] = { emoji: data.emoji, x: data.x, y: data.y };
+});
+
+// Enemy moved
+socket.on('enemyMoved', (data) => {
+  if (enemies[data.id]) {
+    enemies[data.id].x = data.x;
+    enemies[data.id].y = data.y;
+  }
+});
+// Enemy emoji changed by infection
+socket.on('enemyEmojiChanged', (data) => {
+  if (enemies[data.id]) {
+    enemies[data.id].emoji = data.emoji;
+  }
+});
+
+// Player emoji changed (infection)
+socket.on('playerEmojiChanged', (data) => {
+  if (players[data.id]) {
+    const prevEmoji = players[data.id].emoji;
+    players[data.id].emoji = data.emoji;
+    // If this client got infected from default, notify
+    if (data.id === myId && prevEmoji === DEFAULT_EMOJI && data.emoji !== DEFAULT_EMOJI) {
+      alert(`You have been infected with ${data.emoji}! You can now infect others.`);
+    }
+  }
+});
+
+// Game over: if you survived (still smile), show a popup
+socket.on('gameOver', ({ survivors }) => {
+  if (survivors.includes(myId)) {
+    alert('👍');
+  }
 });
 
 // New player joined
@@ -71,6 +122,7 @@ function gameLoop() {
     }
   }
   draw();
+  updateSidebar();
   requestAnimationFrame(gameLoop);
 }
 
@@ -82,15 +134,55 @@ function draw() {
   // Draw each player
   for (const id in players) {
     const p = players[id];
-    // Draw emoji avatar
     ctx.font = '32px serif';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#000';
     ctx.fillText(p.emoji, p.x, p.y);
   }
+  // Draw enemies
+  for (const id in enemies) {
+    const e = enemies[id];
+    ctx.font = '32px serif';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#000';
+    ctx.fillText(e.emoji, e.x, e.y);
+  }
 }
 
 
+// Update sidebar with current stage and emoji counts
+function updateSidebar() {
+  // Compute time left in current stage
+  const now = Date.now();
+  const elapsed = now - serverStart;
+  let timeLeftMs;
+  if (elapsed >= stageDuration * totalStages) {
+    timeLeftMs = 0;
+  } else {
+    timeLeftMs = stageDuration - (elapsed % stageDuration);
+  }
+  const minutes = Math.floor(timeLeftMs / 60000);
+  const seconds = Math.floor((timeLeftMs % 60000) / 1000);
+  const timerEl = document.getElementById('timer');
+  if (timerEl) timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  // Stage is number of enemies spawned (1 to 3)
+  const stage = Object.keys(enemies).length;
+  const stageEl = document.getElementById('stage');
+  if (stageEl) stageEl.textContent = stage;
+  // Count players by emoji
+  const counts = {};
+  ['😊','🤔','😡','🤑'].forEach(e => { counts[e] = 0; });
+  for (const id in players) {
+    const em = players[id].emoji;
+    if (counts.hasOwnProperty(em)) counts[em]++;
+  }
+  // Update counts in sidebar
+  document.querySelectorAll('#emojiCounts li').forEach(li => {
+    const e = li.getAttribute('data-emoji');
+    const span = li.querySelector('.count');
+    if (span && counts[e] !== undefined) span.textContent = counts[e];
+  });
+}
 // No speech events
 
 gameLoop();

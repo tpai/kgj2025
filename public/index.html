@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Emoji Multiplayer Game</title>
+  <title>Spiritual Lesson: Three Stages</title>
   <style>
     html, body {
       margin: 0;
@@ -14,13 +14,48 @@
       justify-content: center;
       background: #f0f0f0;
     }
+    #game-container {
+      display: flex;
+      align-items: flex-start;
+    }
     #gameCanvas {
       background: #ffffff;
+    }
+    #sidebar {
+      width: 200px;
+      background: #ffffff;
+      margin-left: 20px;
+      padding: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+      font-family: sans-serif;
+    }
+    #sidebar h3, #sidebar h4, #sidebar ul {
+      margin: 0 0 10px;
+      padding: 0;
+    }
+    #sidebar ul {
+      list-style: none;
+    }
+    #sidebar li {
+      margin-bottom: 5px;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="600" height="600"></canvas>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div id="sidebar">
+      <h3>Stage: <span id="stage">1</span></h3>
+      <h4>Time left: <span id="timer">0:00</span></h4>
+      <h4>Emoji counts:</h4>
+      <ul id="emojiCounts">
+        <li data-emoji="😊">😊: <span class="count">0</span></li>
+        <li data-emoji="🤔">🤔: <span class="count">0</span></li>
+        <li data-emoji="😡">😡: <span class="count">0</span></li>
+        <li data-emoji="🤑">🤑: <span class="count">0</span></li>
+      </ul>
+    </div>
+  </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/client.js"></script>
 </body>
