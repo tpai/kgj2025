@@ -92,12 +92,6 @@ socket.on('playerEmojiChanged', (data) => {
   if (players[data.id]) {
     const prevEmoji = players[data.id].emoji;
     players[data.id].emoji = data.emoji;
-    // If this client got infected from default, notify
-    if (data.id === myId && prevEmoji === DEFAULT_EMOJI && data.emoji !== DEFAULT_EMOJI) {
-      // Show infection alert matching the emoji stage
-      const stageNumber = EMOJI_STAGE_MAP[data.emoji] || 1;
-      showPopup(`恭喜你進入第 ${stageNumber} 階段！`);
-    }
   }
 });
 
