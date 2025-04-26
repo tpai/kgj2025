@@ -51,6 +51,93 @@ function showPopup(message) {
 let serverStart;
 let stageDuration;
 let totalStages;
+// News ticker content
+const newsTickers = [
+  '在非洲，每六十秒，就有一分鐘過去 ',
+  '凡是每天喝水的人，有高機率在100年內死去 ',
+  '每呼吸60秒，就減少一分鐘的壽命',
+  '誰能想的到，這名16歲少女，在四年前，只是一名12歲少女',
+  '台灣人在睡覺時，大多數的美國人都在工作 ',
+  '當蝴蝶在南半球拍了兩下翅膀，牠就會稍微飛高一點點 ',
+  '據統計，未婚生子的人數中有高機率為女性 ',
+  '只要每天省下買一杯奶茶的錢，十天後就能買十杯奶茶 ',
+  '當你的左臉被人打，那你的左臉就會痛 ',
+  '今年中秋節剛好是滿月、今年七夕恰逢鬼月、今年母親節正好是星期日',
+  '人被殺，就會死。',
+  '台灣競爭力低落，在美國就連小學生都會說流利的英語',
+  '我爸跟我媽同一天結婚',
+  '研究顯示，過越多生日的人越長壽',
+  '我前腳剛走，後腳就跟上了。',
+  '羊毛出在羊身上',
+  '當你舉起一隻手 你會發現你還有一隻手沒舉起來',
+  '當你蹲得越低，腳就越酸',
+  '人被殺就會死',
+  '搭飛機的人，目的地通常離出發地有段距離。',
+  '被叫醒的人，原本在睡覺。',
+  '星星在晚上比較容易看見。',
+  '沒有人能在出生前就出生。',
+  '當你在看這個的時候，你的眼睛正在運動。',
+  '我的右手指跟左手指一樣多',
+  '在聊天室你打「男」有99%的機率對方會離開'
+];
+
+// Initialize news ticker
+function initNewsTicker() {
+  const tickerContent = document.getElementById('ticker-content');
+  if (!tickerContent) return;
+  
+  // Join all ticker items with a separator and repeat for continuous flow
+  // Using a nicer separator with more spacing for readability
+  const tickerText = newsTickers.join(' 📢  ').repeat(2);
+  
+  // Set content
+  tickerContent.textContent = tickerText;
+  
+  // Use requestAnimationFrame to ensure the browser is ready to calculate dimensions
+  requestAnimationFrame(() => {
+    // Wait for document fonts to be ready
+    document.fonts.ready.then(() => {
+      // Get the actual width of the text content after fonts are loaded
+      const contentWidth = tickerContent.offsetWidth;
+      const viewportWidth = window.innerWidth;
+      
+      // Calculate duration - slower for better readability
+      // ~50px per second for smooth scrolling that's still readable
+      const speedFactor = 50;
+      const duration = contentWidth / speedFactor;
+      
+      // Set a reasonable animation duration (min 20s, max 180s)
+      const finalDuration = Math.max(20, Math.min(180, duration));
+      
+      // Apply animation properties
+      tickerContent.style.animationDuration = `${finalDuration}s`;
+      
+      // Use a better animation-timing-function for smoother effect
+      tickerContent.style.animationTimingFunction = 'linear';
+      
+      // Make sure the animation runs infinitely
+      tickerContent.style.animationIterationCount = 'infinite';
+      
+      // Show the ticker
+      document.getElementById('news-ticker-container').style.visibility = 'visible';
+      document.getElementById('news-ticker-container').style.opacity = '1';
+      
+      console.log(`News ticker initialized with ${finalDuration}s duration`);
+    });
+  });
+  
+  // Enhanced fallback
+  setTimeout(() => {
+    const container = document.getElementById('news-ticker-container');
+    if (container && container.style.visibility !== 'visible') {
+      container.style.visibility = 'visible';
+      container.style.opacity = '1';
+      tickerContent.style.animationDuration = '60s';
+      console.log('News ticker fallback initialized');
+    }
+  }, 2000);
+}
+
 // Start main loop once initial data is received
 let gameStarted = false;
 // Receive initial state
@@ -96,6 +183,10 @@ socket.on('init', (data) => {
   // Start game loop after initial server data
   if (!gameStarted) {
     gameStarted = true;
+    
+    // Initialize the news ticker
+    initNewsTicker();
+    
     gameLoop();
   }
 });
@@ -253,6 +344,9 @@ socket.on('gameRestart', (data) => {
     bgMusic.currentTime = 0;
     bgMusic.play().catch(err => console.log('Audio restart error:', err));
   }
+  
+  // Reinitialize news ticker to ensure it's still running
+  initNewsTicker();
 });
 
 // New player joined

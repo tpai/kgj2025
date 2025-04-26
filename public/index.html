@@ -63,6 +63,59 @@
       pointer-events: none;
       color: black;
     }
+    
+    /* News ticker styles */
+    #news-ticker-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 40px;
+      background-color: rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      z-index: 9999;
+      visibility: hidden; /* Hide until initialized */
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+    
+    #news-ticker {
+      position: relative;
+      white-space: nowrap;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    #ticker-content {
+      position: absolute;
+      display: inline-block;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 40px;
+      padding-left: 100%;
+      white-space: nowrap;
+      will-change: transform; /* Hardware acceleration hint */
+      animation: ticker-scroll 120s linear infinite;
+    }
+    
+    @keyframes ticker-scroll {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(-100%); 
+      }
+    }
+    
+    /* Make sure the ticker scrolls smoothly */
+    #news-ticker-container {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transform: translateZ(0); /* Force GPU acceleration */
+      backface-visibility: hidden; /* Further smoothing */
+    }
   </style>
 </head>
 <body>
@@ -81,8 +134,10 @@
   </audio>
   
   <div id="game-container">
-    <canvas id="gameCanvas" width="600" height="600"></canvas>
-    <div id="popup"></div>
+    <div class="game-area" style="position: relative;">
+      <canvas id="gameCanvas" width="600" height="600"></canvas>
+      <div id="popup"></div>
+    </div>
     <div id="sidebar">
       <h3>階段 <span id="stage">1</span></h3>
       <h4>學員狀態:</h4>
@@ -92,6 +147,12 @@
         <li data-emoji="😡">😡: <span class="count">0</span></li>
         <li data-emoji="🤑">🤑: <span class="count">0</span></li>
       </ul>
+    </div>
+  </div>
+  <!-- News ticker fixed at bottom of viewport -->
+  <div id="news-ticker-container">
+    <div id="news-ticker">
+      <span id="ticker-content"></span>
     </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
