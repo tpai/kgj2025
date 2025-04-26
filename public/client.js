@@ -32,23 +32,37 @@ function showPopup(message) {
       popup.style.display = 'none';
       popup.removeEventListener('transitionend', handler);
     });
-  }, 1000);
+  }, 2000);
 }
 
 // Timing for countdown (will be set by server)
-let serverStart = Date.now();
-let stageDuration = 60000;
-let totalStages = 3;
+let serverStart;
+let stageDuration;
+let totalStages;
+// Start main loop once initial data is received
+let gameStarted = false;
 // Receive initial state
 socket.on('init', (data) => {
-  // Set up timing from server
-  if (data.serverStart) serverStart = data.serverStart;
-  if (data.stageDuration) stageDuration = data.stageDuration;
-  if (data.totalStages) totalStages = data.totalStages;
+  // Set up timing from server and adjust for client-server clock skew
+  if (data.serverStart != null) {
+    if (data.serverNow != null) {
+      const offset = Date.now() - data.serverNow;
+      serverStart = data.serverStart + offset;
+    } else {
+      serverStart = data.serverStart;
+    }
+  }
+  if (data.stageDuration != null) stageDuration = data.stageDuration;
+  if (data.totalStages != null) totalStages = data.totalStages;
   // Initialize player and entity states
   myId = data.id;
   Object.assign(players, data.players);
   Object.assign(enemies, data.enemies);
+  // Start game loop after initial server data
+  if (!gameStarted) {
+    gameStarted = true;
+    gameLoop();
+  }
 });
 
 // New enemy joined
@@ -87,17 +101,48 @@ socket.on('playerEmojiChanged', (data) => {
   }
 });
 
-// Game over: notify players and schedule restart
+// Game over: display customized celebratory popup and schedule restart
 socket.on('gameOver', ({ survivors, restartDelay }) => {
-  showPopup(`心靈課程結束，遊戲將在 ${restartDelay/1000} 秒後重啟！`);
+  const popup = document.getElementById('popup');
+  if (!popup) return;
+  // Tailor message: survivors (kept smile face) vs. others (infected with thinking/angry/money faces)
+  let message;
+  if (Array.isArray(survivors) && survivors.includes(myId)) {
+    message = `習藍4ni？<br>(遊戲將於 ${restartDelay/1000} 秒後自動重啟)`;
+  } else {
+    message = `玩得很好，以後不要參加心靈課程了。<br>(遊戲將於 ${restartDelay/1000} 秒後自動重啟)`;
+  }
+  // Include the player's final emoji in large size above the message
+  const playerEmoji = (players[myId] && players[myId].emoji) || DEFAULT_EMOJI;
+  popup.innerHTML = `<div style="font-size:64px; line-height:1">${playerEmoji}</div>` + message;
+  popup.style.display = 'block';
+  // Force reflow for transition
+  void popup.offsetWidth;
+  popup.style.opacity = '1';
+  // Hide popup after the restart delay
+  setTimeout(() => {
+    popup.style.opacity = '0';
+    popup.addEventListener('transitionend', function handler() {
+      popup.style.display = 'none';
+      popup.removeEventListener('transitionend', handler);
+    });
+  }, restartDelay);
 });
 
 
 // Reset game state on restart
 socket.on('gameRestart', (data) => {
-  if (data.serverStart) serverStart = data.serverStart;
-  if (data.stageDuration) stageDuration = data.stageDuration;
-  if (data.totalStages) totalStages = data.totalStages;
+  // Set up timing from server restart and adjust clock skew
+  if (data.serverStart != null) {
+    if (data.serverNow != null) {
+      const offset = Date.now() - data.serverNow;
+      serverStart = data.serverStart + offset;
+    } else {
+      serverStart = data.serverStart;
+    }
+  }
+  if (data.stageDuration != null) stageDuration = data.stageDuration;
+  if (data.totalStages != null) totalStages = data.totalStages;
   // Reset players to default emoji
   Object.keys(players).forEach(id => {
     players[id].emoji = DEFAULT_EMOJI;
@@ -206,11 +251,17 @@ function updateSidebar() {
   const stage = Object.keys(enemies).length;
   const stageEl = document.getElementById('stage');
   if (stageEl) stageEl.textContent = stage;
-  // Count players by emoji
+  // Count players and enemies by emoji
   const counts = {};
   ['😊','🤔','😡','🤑'].forEach(e => { counts[e] = 0; });
+  // Count player emojis (including NPCs)
   for (const id in players) {
     const em = players[id].emoji;
+    if (counts.hasOwnProperty(em)) counts[em]++;
+  }
+  // Count enemy emojis
+  for (const id in enemies) {
+    const em = enemies[id].emoji;
     if (counts.hasOwnProperty(em)) counts[em]++;
   }
   // Update counts in sidebar
@@ -221,5 +272,3 @@ function updateSidebar() {
   });
 }
 // No speech events
-
-gameLoop();

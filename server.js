@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3003;
 
 // Serve static files from 'public'
 app.use(express.static('public'));
@@ -29,8 +29,11 @@ const enemies = {};
 // Canvas and emoji dimensions for boundary clamping
 const CANVAS_SIZE = 600;
 const EMOJI_SIZE = 32;
+// Collision detection radius for infections (px)
+const COLLISION_RADIUS = EMOJI_SIZE * 0.75;
+const COLLISION_DIST_SQ = COLLISION_RADIUS * COLLISION_RADIUS;
 // Stage duration (milliseconds)
-const STAGE_DURATION = 60000;
+const STAGE_DURATION = 30000;
 // Server start timestamp
 let SERVER_START = Date.now();
 // Total number of stages (number of enemy waves)
@@ -50,7 +53,7 @@ const NPC_DIRECTIONS = [
 // Initialize NPC players (fixed count) with a uniform emoji, positions, and movement state
 const NPC_COUNT = 10;
 // Distance within which stronger entities begin chasing weaker ones
-const TRACK_DISTANCE = 100;
+const TRACK_DISTANCE = 150;
 for (let i = 0; i < NPC_COUNT; i++) {
   const npcId = `npc_${i}`;
   // NPCs all share the same avatar
@@ -79,7 +82,7 @@ for (let i = 0; i < NPC_COUNT; i++) {
 	  io.emit('enemyJoined', { id: enemyId, emoji, x, y });
 	}
   // Game cycle control: spawn stages, handle game over, and loop
-  const RESTART_DELAY = 5000;
+  const RESTART_DELAY = 10000;
   let gameTimeouts = [];
 
   function clearGameTimeouts() {
@@ -103,6 +106,7 @@ for (let i = 0; i < NPC_COUNT; i++) {
     // Notify clients to restart timer and stage
     io.emit('gameRestart', {
       serverStart: SERVER_START,
+      serverNow: Date.now(),
       stageDuration: STAGE_DURATION,
       totalStages: TOTAL_STAGES
     });
@@ -169,8 +173,9 @@ for (let i = 0; i < NPC_COUNT; i++) {
       // After final stage duration, end game and immediately restart (no countdown)
       const gameOverTimeout = setTimeout(() => {
         const survivors = Object.keys(players).filter(id => !id.startsWith('npc_') && players[id].emoji === PLAYER_EMOJI);
-        io.emit('gameOver', { survivors, restartDelay: 0 });
-        startGameCycle();
+        io.emit('gameOver', { survivors, restartDelay: RESTART_DELAY });
+        const restartTimeout = setTimeout(() => startGameCycle(), RESTART_DELAY);
+        gameTimeouts.push(restartTimeout);
       }, STAGE_DURATION);
       gameTimeouts.push(gameOverTimeout);
       // Watcher to end early when no human players remain in stage3
@@ -183,8 +188,9 @@ for (let i = 0; i < NPC_COUNT; i++) {
           clearTimeout(gameOverTimeout);
           clearInterval(watcher3);
           const survivors = Object.keys(players).filter(id => !id.startsWith('npc_') && players[id].emoji === PLAYER_EMOJI);
-          io.emit('gameOver', { survivors, restartDelay: 0 });
-          startGameCycle();
+          io.emit('gameOver', { survivors, restartDelay: RESTART_DELAY });
+          const restartTimeout = setTimeout(() => startGameCycle(), RESTART_DELAY);
+          gameTimeouts.push(restartTimeout);
         }
       }, 500);
       gameTimeouts.push(watcher3);
@@ -210,6 +216,7 @@ for (let i = 0; i < NPC_COUNT; i++) {
     players,
     enemies,
     serverStart: SERVER_START,
+    serverNow: Date.now(),
     stageDuration: STAGE_DURATION,
     totalStages: TOTAL_STAGES
   });
