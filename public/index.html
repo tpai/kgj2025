@@ -12,7 +12,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f0f0f0;
+      background: url('/assets/background.png') no-repeat center center fixed;
+      background-size: cover;
     }
     #game-container {
       position: relative;
@@ -20,15 +21,17 @@
       align-items: flex-start;
     }
     #gameCanvas {
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.5);
     }
     #sidebar {
       width: 200px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.5);
       margin-left: 20px;
       padding: 10px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
       font-family: sans-serif;
+      color: black;
+      border-radius: 5px;
     }
     #sidebar h3, #sidebar h4, #sidebar ul {
       margin: 0 0 10px;
@@ -48,7 +51,7 @@
       left: 50%;
       width: 30vw;
       transform: translate(-50%, -50%);
-      background: #fff;
+      background: rgba(255, 255, 255, 0.2);
       padding: 20px;
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
@@ -58,10 +61,25 @@
       transition: opacity 0.5s ease;
       text-align: center;
       pointer-events: none;
+      color: black;
     }
   </style>
 </head>
 <body>
+  <!-- Audio elements with preload attribute -->
+  <audio id="bgMusic" preload="auto">
+    <source src="/assets/bg.mp3" type="audio/mp3">
+    Your browser does not support the audio element.
+  </audio>
+  <audio id="winSound" preload="auto">
+    <source src="/assets/win.mp3" type="audio/mp3">
+    Your browser does not support the audio element.
+  </audio>
+  <audio id="loseSound" preload="auto">
+    <source src="/assets/lose.mp3" type="audio/mp3">
+    Your browser does not support the audio element.
+  </audio>
+  
   <div id="game-container">
     <canvas id="gameCanvas" width="600" height="600"></canvas>
     <div id="popup"></div>

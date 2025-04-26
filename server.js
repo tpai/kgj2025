@@ -11,6 +11,10 @@ const PORT = process.env.PORT || 3003;
 
 // Serve static files from 'public'
 app.use(express.static('public'));
+// Serve assets directory for images and sounds
+app.use('/assets', express.static('assets'));
+// Serve background image from root directory
+app.use(express.static('.'));
 
 // All players use the same emoji (default, uninfected)
 const PLAYER_EMOJI = '😊';

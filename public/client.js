@@ -4,7 +4,11 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const players = {};
 const enemies = {};
-// No chat/speech functionality
+// Audio elements
+const bgMusic = document.getElementById('bgMusic');
+const winSound = document.getElementById('winSound');
+const loseSound = document.getElementById('loseSound');
+let soundsInitialized = false;
 
 let myId = null;
 // Player movement speed (pixels per frame), aligned with NPC_SPEED on server
@@ -58,12 +62,63 @@ socket.on('init', (data) => {
   myId = data.id;
   Object.assign(players, data.players);
   Object.assign(enemies, data.enemies);
+  
+  // Initialize audio (needs user interaction)
+  if (!soundsInitialized) {
+    // We'll initialize sounds on first user interaction
+    document.addEventListener('click', initSounds, { once: true });
+    document.addEventListener('keydown', initSounds, { once: true });
+  }
+  
   // Start game loop after initial server data
   if (!gameStarted) {
     gameStarted = true;
     gameLoop();
   }
 });
+
+// Initialize audio (requires user interaction due to browser policies)
+function initSounds() {
+  if (soundsInitialized) return;
+  
+  // Make sure all audio elements are properly loaded
+  bgMusic.src = '/assets/bg.mp3';
+  winSound.src = '/assets/win.mp3';
+  loseSound.src = '/assets/lose.mp3';
+  
+  // Set properties for background music
+  bgMusic.loop = true;
+  bgMusic.volume = 0.8; // Set background music volume to 80%
+  
+  // Try to play background music
+  const playPromise = bgMusic.play();
+  
+  if (playPromise !== undefined) {
+    playPromise
+      .then(_ => {
+        console.log('Audio playback started successfully');
+        soundsInitialized = true;
+      })
+      .catch(err => {
+        console.log('Audio playback error:', err);
+        // Try again after a short delay
+        setTimeout(() => {
+          if (!soundsInitialized) {
+            bgMusic.play()
+              .then(_ => {
+                console.log('Audio playback started on retry');
+                soundsInitialized = true;
+              })
+              .catch(e => console.log('Audio retry failed:', e));
+          }
+        }, 1000);
+      });
+  }
+  
+  // Remove event listeners since they're only needed once
+  document.removeEventListener('click', initSounds);
+  document.removeEventListener('keydown', initSounds);
+}
 
 // New enemy joined
 socket.on('enemyJoined', (data) => {
@@ -99,6 +154,19 @@ socket.on('playerEmojiChanged', (data) => {
 socket.on('gameOver', ({ survivors, restartDelay }) => {
   const popup = document.getElementById('popup');
   if (!popup) return;
+  
+  // Pause background music
+  if (soundsInitialized) {
+    bgMusic.pause();
+    
+    // Play win sound if player survived with smile emoji, lose sound otherwise
+    if (Array.isArray(survivors) && survivors.includes(myId)) {
+      winSound.play().catch(err => console.log('Win sound error:', err));
+    } else {
+      loseSound.play().catch(err => console.log('Lose sound error:', err));
+    }
+  }
+  
   // Tailor message: survivors (kept smile face) vs. others (infected with thinking/angry/money faces)
   let message;
   if (Array.isArray(survivors) && survivors.includes(myId)) {
@@ -143,6 +211,13 @@ socket.on('gameRestart', (data) => {
   });
   // Clear enemies
   Object.keys(enemies).forEach(id => delete enemies[id]);
+  
+  // Restart background music if sounds were initialized
+  if (soundsInitialized) {
+    // Reset audio to beginning and play
+    bgMusic.currentTime = 0;
+    bgMusic.play().catch(err => console.log('Audio restart error:', err));
+  }
 });
 
 // New player joined
@@ -204,7 +279,7 @@ function gameLoop() {
 
 // Draw all players
 function draw() {
-  // Clear screen
+  // Clear screen with transparency to show background
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   // No background speech overlays
   // Draw each player
@@ -212,7 +287,7 @@ function draw() {
     const p = players[id];
     ctx.font = '32px serif';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#000'; // Black color
     ctx.fillText(p.emoji, p.x, p.y);
   }
   // Draw enemies
@@ -220,7 +295,7 @@ function draw() {
     const e = enemies[id];
     ctx.font = '32px serif';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#000'; // Black color
     ctx.fillText(e.emoji, e.x, e.y);
   }
 }
