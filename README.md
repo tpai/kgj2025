@@ -1,6 +1,6 @@
 # 模擬心靈課程：三階段
 
-這是一款為了惡搞台灣前陣子很紅的三階段心靈課程而製作的多人遊戲，於參加 Kuso Game Jam 2025 期間開發。
+這是一款為了惡搞台灣前陣子很紅的三階段心靈課程而製作的多人連線遊戲，於參加 Kuso Game Jam 2025 期間開發。
 
 ![遊戲截圖](screenshot.png)
 
@@ -12,20 +12,6 @@
 - 🤔（第一階段）－自我懷疑階段
 - 😡（第二階段）－崩潰暴怒階段
 - 🤑（第三階段）－推銷課程階段
-
-## 安裝與設定
-
-1. 安裝套件：
-```bash
-bun install
-```
-
-2. 啟動伺服器：
-```bash
-bun run start
-```
-
-3. 打開瀏覽器並前往 `http://localhost:3000`
 
 ## 操作方式
 
@@ -40,6 +26,20 @@ bun run start
 - Socket.io
 - HTML5 Canvas
 - JavaScript
+
+## 安裝與設定
+
+1. 安裝套件：
+```bash
+bun install
+```
+
+2. 啟動伺服器：
+```bash
+bun run start
+```
+
+3. 打開瀏覽器並前往 `http://localhost:3000`
 
 ## 素材來源
 
