@@ -19,6 +19,14 @@ const keys = {};
 // Default emoji for uninfected players
 const DEFAULT_EMOJI = '😊';
 
+// Movement optimization variables
+const MOVEMENT_THROTTLE = 50; // Send movement updates to server every 50ms
+let lastMovementUpdate = 0;
+// Store the last position sent to the server for client-side prediction
+let lastSentPosition = { x: 0, y: 0 };
+// For smooth interpolation of other players
+const otherPlayersTarget = {};
+
 // Function to display a temporary non-blocking popup message
 // Map infected emoji to stage number
 const EMOJI_STAGE_MAP = { '🤔': 1, '😡': 2, '🤑': 3 };
@@ -62,6 +70,21 @@ socket.on('init', (data) => {
   myId = data.id;
   Object.assign(players, data.players);
   Object.assign(enemies, data.enemies);
+  
+  // Initialize target positions for interpolation
+  for (const id in players) {
+    if (id !== myId) {
+      otherPlayersTarget[id] = { x: players[id].x, y: players[id].y };
+    } else {
+      // Store our last sent position
+      lastSentPosition = { x: players[id].x, y: players[id].y };
+    }
+  }
+  
+  // Initialize enemy targets
+  for (const id in enemies) {
+    otherPlayersTarget[`enemy_${id}`] = { x: enemies[id].x, y: enemies[id].y };
+  }
   
   // Initialize audio (needs user interaction)
   if (!soundsInitialized) {
@@ -123,6 +146,8 @@ function initSounds() {
 // New enemy joined
 socket.on('enemyJoined', (data) => {
   enemies[data.id] = { emoji: data.emoji, x: data.x, y: data.y };
+  // Initialize target position for interpolation
+  otherPlayersTarget[`enemy_${data.id}`] = { x: data.x, y: data.y };
   // Notify player of new stage start
   const stageNumber = parseInt(data.id.replace('enemy', ''), 10);
   showPopup(`階段 ${stageNumber} 開始囉！`);
@@ -131,8 +156,20 @@ socket.on('enemyJoined', (data) => {
 // Enemy moved
 socket.on('enemyMoved', (data) => {
   if (enemies[data.id]) {
-    enemies[data.id].x = data.x;
-    enemies[data.id].y = data.y;
+    // Create target for interpolation if it doesn't exist
+    if (!otherPlayersTarget[`enemy_${data.id}`]) {
+      otherPlayersTarget[`enemy_${data.id}`] = { x: data.x, y: data.y };
+    } else {
+      otherPlayersTarget[`enemy_${data.id}`].x = data.x;
+      otherPlayersTarget[`enemy_${data.id}`].y = data.y;
+    }
+    
+    // If enemy is too far from its target, snap immediately
+    if (Math.abs(enemies[data.id].x - data.x) > 50 ||
+        Math.abs(enemies[data.id].y - data.y) > 50) {
+      enemies[data.id].x = data.x;
+      enemies[data.id].y = data.y;
+    }
   }
 });
 // Enemy emoji changed by infection
@@ -168,12 +205,7 @@ socket.on('gameOver', ({ survivors, restartDelay }) => {
   }
   
   // Tailor message: survivors (kept smile face) vs. others (infected with thinking/angry/money faces)
-  let message;
-  if (Array.isArray(survivors) && survivors.includes(myId)) {
-    message = `習藍4ni？<br>(遊戲將於 ${restartDelay/1000} 秒後自動重啟)`;
-  } else {
-    message = `玩得很好，以後不要參加心靈課程了。<br>(遊戲將於 ${restartDelay/1000} 秒後自動重啟)`;
-  }
+  let message = `課程將於 ${restartDelay/1000} 秒後自動重啟`;
   // Include the player's final emoji in large size above the message
   const playerEmoji = (players[myId] && players[myId].emoji) || DEFAULT_EMOJI;
   popup.innerHTML = `<div style="font-size:64px; line-height:1">${playerEmoji}</div>` + message;
@@ -210,7 +242,10 @@ socket.on('gameRestart', (data) => {
     players[id].emoji = DEFAULT_EMOJI;
   });
   // Clear enemies
-  Object.keys(enemies).forEach(id => delete enemies[id]);
+  Object.keys(enemies).forEach(id => {
+    delete enemies[id];
+    delete otherPlayersTarget[`enemy_${id}`];
+  });
   
   // Restart background music if sounds were initialized
   if (soundsInitialized) {
@@ -223,19 +258,34 @@ socket.on('gameRestart', (data) => {
 // New player joined
 socket.on('playerJoined', (data) => {
   players[data.id] = data.player;
+  // Initialize target position for interpolation
+  otherPlayersTarget[data.id] = { x: data.player.x, y: data.player.y };
 });
 
 // Player moved
 socket.on('playerMoved', (data) => {
+  // If this is our own movement, we've already updated locally
+  if (data.id === myId) return;
+  
+  // For other players, set target position for smooth interpolation
   if (players[data.id]) {
-    players[data.id].x = data.x;
-    players[data.id].y = data.y;
+    // Store target position for interpolation
+    otherPlayersTarget[data.id] = { x: data.x, y: data.y };
+    
+    // If this is a new player or player is far from target, snap immediately
+    if (!otherPlayersTarget[data.id] ||
+        Math.abs(players[data.id].x - data.x) > 50 ||
+        Math.abs(players[data.id].y - data.y) > 50) {
+      players[data.id].x = data.x;
+      players[data.id].y = data.y;
+    }
   }
 });
 
 // Player left
 socket.on('playerLeft', (id) => {
   delete players[id];
+  delete otherPlayersTarget[id];
 });
 
 // Input handling
@@ -255,48 +305,108 @@ window.addEventListener('keyup', (e) => {
 
 // Game loop
 function gameLoop() {
+  const now = Date.now();
+  
   if (myId && players[myId]) {
     const player = players[myId];
     let moved = false;
+    
+    // Handle player movement with immediate local updates
     if (keys['ArrowUp'] || keys['w']) { player.y = Math.max(0, player.y - speed); moved = true; }
-    if (keys['ArrowDown'] || keys['s']) {
-      player.y = Math.min(canvas.height - EMOJI_SIZE, player.y + speed);
-      moved = true;
+    if (keys['ArrowDown'] || keys['s']) { 
+      player.y = Math.min(canvas.height - EMOJI_SIZE, player.y + speed); 
+      moved = true; 
     }
     if (keys['ArrowLeft'] || keys['a']) { player.x = Math.max(0, player.x - speed); moved = true; }
-    if (keys['ArrowRight'] || keys['d']) {
-      player.x = Math.min(canvas.width - EMOJI_SIZE, player.x + speed);
-      moved = true;
+    if (keys['ArrowRight'] || keys['d']) { 
+      player.x = Math.min(canvas.width - EMOJI_SIZE, player.x + speed); 
+      moved = true; 
     }
-    if (moved) {
-      socket.emit('move', { x: player.x, y: player.y });
+    
+    // Throttle network updates to reduce server load and network traffic
+    if (moved && now - lastMovementUpdate >= MOVEMENT_THROTTLE) {
+      // Only send update if position has changed significantly or enough time has passed
+      if (Math.abs(player.x - lastSentPosition.x) > 1 || 
+          Math.abs(player.y - lastSentPosition.y) > 1 ||
+          now - lastMovementUpdate >= MOVEMENT_THROTTLE * 3) {
+            
+        socket.emit('move', { x: player.x, y: player.y });
+        lastSentPosition.x = player.x;
+        lastSentPosition.y = player.y;
+        lastMovementUpdate = now;
+      }
     }
   }
+  
+  // Interpolate movement of other players for smoother visuals
+  interpolateOtherPlayers();
+  
   draw();
   updateSidebar();
   requestAnimationFrame(gameLoop);
+}
+
+// Smoothly interpolate other players' and enemies' positions
+function interpolateOtherPlayers() {
+  const INTERP_FACTOR = 0.2;  // Adjust for smoother or quicker interpolation
+  
+  // Interpolate other players
+  for (const id in players) {
+    if (id === myId) continue;  // Skip own player
+    
+    const player = players[id];
+    const target = otherPlayersTarget[id];
+    
+    if (target) {
+      // Interpolate towards target position
+      player.x += (target.x - player.x) * INTERP_FACTOR;
+      player.y += (target.y - player.y) * INTERP_FACTOR;
+    }
+  }
+  
+  // Interpolate enemies
+  for (const id in enemies) {
+    const enemy = enemies[id];
+    const target = otherPlayersTarget[`enemy_${id}`];
+    
+    if (target) {
+      // Interpolate towards target position
+      enemy.x += (target.x - enemy.x) * INTERP_FACTOR;
+      enemy.y += (target.y - enemy.y) * INTERP_FACTOR;
+    }
+  }
 }
 
 // Draw all players
 function draw() {
   // Clear screen with transparency to show background
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // No background speech overlays
-  // Draw each player
+  
+  // Use hardware acceleration where possible
+  ctx.imageSmoothingEnabled = false;  // Crisper pixel rendering
+  
+  // Common text rendering settings to avoid repeated state changes
+  ctx.font = '32px serif';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; // Black color
+  
+  // Draw all entities at once to minimize context state changes
+  // Draw players first
   for (const id in players) {
     const p = players[id];
-    ctx.font = '32px serif';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#000'; // Black color
-    ctx.fillText(p.emoji, p.x, p.y);
+    // Use integer positions to avoid blurry text (round to nearest pixel)
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+    ctx.fillText(p.emoji, x, y);
   }
-  // Draw enemies
+  
+  // Draw enemies second
   for (const id in enemies) {
     const e = enemies[id];
-    ctx.font = '32px serif';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#000'; // Black color
-    ctx.fillText(e.emoji, e.x, e.y);
+    // Use integer positions to avoid blurry text
+    const x = Math.round(e.x);
+    const y = Math.round(e.y);
+    ctx.fillText(e.emoji, x, y);
   }
 }
 
