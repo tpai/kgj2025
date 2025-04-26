@@ -15,6 +15,26 @@ const keys = {};
 // Default emoji for uninfected players
 const DEFAULT_EMOJI = '😊';
 
+// Function to display a temporary non-blocking popup message
+// Map infected emoji to stage number
+const EMOJI_STAGE_MAP = { '🤔': 1, '😡': 2, '🤑': 3 };
+function showPopup(message) {
+  const popup = document.getElementById('popup');
+  if (!popup) return;
+  popup.textContent = message;
+  popup.style.display = 'block';
+  // Force reflow for transition
+  void popup.offsetWidth;
+  popup.style.opacity = '1';
+  setTimeout(() => {
+    popup.style.opacity = '0';
+    popup.addEventListener('transitionend', function handler() {
+      popup.style.display = 'none';
+      popup.removeEventListener('transitionend', handler);
+    });
+  }, 1000);
+}
+
 // Timing for countdown (will be set by server)
 let serverStart = Date.now();
 let stageDuration = 60000;
@@ -34,6 +54,9 @@ socket.on('init', (data) => {
 // New enemy joined
 socket.on('enemyJoined', (data) => {
   enemies[data.id] = { emoji: data.emoji, x: data.x, y: data.y };
+  // Notify player of new stage start
+  const stageNumber = parseInt(data.id.replace('enemy', ''), 10);
+  showPopup(`階段 ${stageNumber} 開始囉！`);
 });
 
 // Enemy moved
@@ -57,16 +80,30 @@ socket.on('playerEmojiChanged', (data) => {
     players[data.id].emoji = data.emoji;
     // If this client got infected from default, notify
     if (data.id === myId && prevEmoji === DEFAULT_EMOJI && data.emoji !== DEFAULT_EMOJI) {
-      alert(`You have been infected with ${data.emoji}! You can now infect others.`);
+      // Show infection alert matching the emoji stage
+      const stageNumber = EMOJI_STAGE_MAP[data.emoji] || 1;
+      showPopup(`恭喜你進入第 ${stageNumber} 階段！`);
     }
   }
 });
 
-// Game over: if you survived (still smile), show a popup
-socket.on('gameOver', ({ survivors }) => {
-  if (survivors.includes(myId)) {
-    alert('👍');
-  }
+// Game over: notify players and schedule restart
+socket.on('gameOver', ({ survivors, restartDelay }) => {
+  showPopup(`心靈課程結束，遊戲將在 ${restartDelay/1000} 秒後重啟！`);
+});
+
+
+// Reset game state on restart
+socket.on('gameRestart', (data) => {
+  if (data.serverStart) serverStart = data.serverStart;
+  if (data.stageDuration) stageDuration = data.stageDuration;
+  if (data.totalStages) totalStages = data.totalStages;
+  // Reset players to default emoji
+  Object.keys(players).forEach(id => {
+    players[id].emoji = DEFAULT_EMOJI;
+  });
+  // Clear enemies
+  Object.keys(enemies).forEach(id => delete enemies[id]);
 });
 
 // New player joined

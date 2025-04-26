@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Spiritual Lesson: Three Stages</title>
+  <title>模擬心靈課程: 三階段</title>
   <style>
     html, body {
       margin: 0;
@@ -15,6 +15,7 @@
       background: #f0f0f0;
     }
     #game-container {
+      position: relative;
       display: flex;
       align-items: flex-start;
     }
@@ -39,15 +40,34 @@
     #sidebar li {
       margin-bottom: 5px;
     }
+    /* Popup notification */
+    #popup {
+      display: none;
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 10px 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      font-size: 24px;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      text-align: center;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
   <div id="game-container">
     <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div id="popup"></div>
     <div id="sidebar">
-      <h3>Stage: <span id="stage">1</span></h3>
-      <h4>Time left: <span id="timer">0:00</span></h4>
-      <h4>Emoji counts:</h4>
+      <h3>階段 <span id="stage">1</span></h3>
+      <h4>剩餘時間: <span id="timer">0:00</span></h4>
+      <h4>學員狀態:</h4>
       <ul id="emojiCounts">
         <li data-emoji="😊">😊: <span class="count">0</span></li>
         <li data-emoji="🤔">🤔: <span class="count">0</span></li>
