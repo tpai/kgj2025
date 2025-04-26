@@ -1,0 +1,15 @@
+{
+  "name": "emoji-multiplayer-game",
+  "version": "1.0.0",
+  "description": "A multiplayer game where each player is a random emoji and can walk around.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.1"
+  }
+}
