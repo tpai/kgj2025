@@ -398,6 +398,9 @@ function draw() {
     const x = Math.round(p.x);
     const y = Math.round(p.y);
     ctx.fillText(p.emoji, x, y);
+    
+    // DEBUG: Draw collision area as a blue circle
+    // drawCollisionArea(x, y);
   }
   
   // Draw enemies second
@@ -407,9 +410,11 @@ function draw() {
     const x = Math.round(e.x);
     const y = Math.round(e.y);
     ctx.fillText(e.emoji, x, y);
+    
+    // DEBUG: Draw collision area as a blue circle
+    // drawCollisionArea(x, y);
   }
 }
-
 
 // Update sidebar with current stage and emoji counts
 function updateSidebar() {
@@ -437,4 +442,30 @@ function updateSidebar() {
     if (span && counts[e] !== undefined) span.textContent = counts[e];
   });
 }
+
+// Draw collision area for an entity at position (x,y)
+function drawCollisionArea(x, y) {
+  // Save current context state
+  ctx.save();
+  
+  // Set blue outline for the collision area 
+  ctx.strokeStyle = 'rgba(0, 100, 255, 0.7)';
+  ctx.lineWidth = 2;
+  
+  // Draw a circle matching the emoji shape
+  // Use EMOJI_SIZE/2 as radius for a circle that matches the emoji's circular shape
+  ctx.beginPath();
+  ctx.arc(
+    x + EMOJI_SIZE / 2,  // X center of the emoji
+    y + EMOJI_SIZE / 2,  // Y center of the emoji
+    EMOJI_SIZE / 2,      // Radius (half of emoji size for a perfect circle)
+    0,                   // Start angle
+    Math.PI * 2          // End angle (full circle)
+  );
+  ctx.stroke();
+  
+  // Restore context state
+  ctx.restore();
+}
+
 // No speech events

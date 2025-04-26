@@ -34,7 +34,7 @@ const enemies = {};
 const CANVAS_SIZE = 600;
 const EMOJI_SIZE = 32;
 // Collision detection radius for infections (px)
-const COLLISION_RADIUS = EMOJI_SIZE * 0.75;
+const COLLISION_RADIUS = EMOJI_SIZE / 2; // Perfect circle matching emoji size
 const COLLISION_DIST_SQ = COLLISION_RADIUS * COLLISION_RADIUS;
 // Stage duration (milliseconds)
 const STAGE_DURATION = 30000;
@@ -324,10 +324,14 @@ setInterval(() => {
   // infect weaker players on collision (infector must be stronger)
   infectors.forEach(inf => {
     Object.entries(players).forEach(([pid, p]) => {
+      // Use circular collision detection
+      const dx = (p.x + EMOJI_SIZE/2) - (inf.x + EMOJI_SIZE/2); // Center to center X distance
+      const dy = (p.y + EMOJI_SIZE/2) - (inf.y + EMOJI_SIZE/2); // Center to center Y distance
+      const distSq = dx * dx + dy * dy; // Squared distance
+      
       if (
         EMOJI_STRENGTH[inf.emoji] > EMOJI_STRENGTH[p.emoji] &&
-        Math.abs(p.x - inf.x) < EMOJI_SIZE &&
-        Math.abs(p.y - inf.y) < EMOJI_SIZE
+        distSq < COLLISION_DIST_SQ // Circle collision check
       ) {
         players[pid].emoji = inf.emoji;
         io.emit('playerEmojiChanged', { id: pid, emoji: inf.emoji });
@@ -337,10 +341,14 @@ setInterval(() => {
   // infect weaker enemies on collision (infector must be stronger)
   infectors.forEach(inf => {
     Object.entries(enemies).forEach(([eid, e]) => {
+      // Use circular collision detection
+      const dx = (e.x + EMOJI_SIZE/2) - (inf.x + EMOJI_SIZE/2); // Center to center X distance
+      const dy = (e.y + EMOJI_SIZE/2) - (inf.y + EMOJI_SIZE/2); // Center to center Y distance
+      const distSq = dx * dx + dy * dy; // Squared distance
+      
       if (
         EMOJI_STRENGTH[inf.emoji] > EMOJI_STRENGTH[e.emoji] &&
-        Math.abs(e.x - inf.x) < EMOJI_SIZE &&
-        Math.abs(e.y - inf.y) < EMOJI_SIZE
+        distSq < COLLISION_DIST_SQ // Circle collision check
       ) {
         enemies[eid].emoji = inf.emoji;
         io.emit('enemyEmojiChanged', { id: eid, emoji: inf.emoji });
@@ -411,9 +419,12 @@ setInterval(() => {
     // Collision detection with players
     Object.keys(players).forEach((pid) => {
       const p = players[pid];
-      if (p.emoji !== e.emoji &&
-          Math.abs(p.x - e.x) < EMOJI_SIZE &&
-          Math.abs(p.y - e.y) < EMOJI_SIZE) {
+      // Use circular collision detection
+      const dx = (p.x + EMOJI_SIZE/2) - (e.x + EMOJI_SIZE/2); // Center to center X distance
+      const dy = (p.y + EMOJI_SIZE/2) - (e.y + EMOJI_SIZE/2); // Center to center Y distance
+      const distSq = dx * dx + dy * dy; // Squared distance
+      
+      if (p.emoji !== e.emoji && distSq < COLLISION_DIST_SQ) {
         players[pid].emoji = e.emoji;
         io.emit('playerEmojiChanged', { id: pid, emoji: e.emoji });
       }
