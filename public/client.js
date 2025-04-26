@@ -234,19 +234,6 @@ function draw() {
 
 // Update sidebar with current stage and emoji counts
 function updateSidebar() {
-  // Compute time left in current stage
-  const now = Date.now();
-  const elapsed = now - serverStart;
-  let timeLeftMs;
-  if (elapsed >= stageDuration * totalStages) {
-    timeLeftMs = 0;
-  } else {
-    timeLeftMs = stageDuration - (elapsed % stageDuration);
-  }
-  const minutes = Math.floor(timeLeftMs / 60000);
-  const seconds = Math.floor((timeLeftMs % 60000) / 1000);
-  const timerEl = document.getElementById('timer');
-  if (timerEl) timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   // Stage is number of enemies spawned (1 to 3)
   const stage = Object.keys(enemies).length;
   const stageEl = document.getElementById('stage');
