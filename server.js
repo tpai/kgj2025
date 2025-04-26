@@ -430,7 +430,7 @@ setInterval(() => {
       }
     });
   });
-}, 50);
+}, 100);
 
 server.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
