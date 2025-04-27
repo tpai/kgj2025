@@ -45,7 +45,7 @@ const TOTAL_STAGES = 3;
 // NPC configuration: simulate human-like control
 // Speeds for NPCs and enemies (pixels per tick)
 const NPC_SPEED = 3; // 150% of base speed
-const ENEMY_SPEED = 4; // doubled base speed
+const ENEMY_SPEED = 6; // doubled base speed
 const NPC_MIN_STEPS = 10;
 const NPC_MAX_STEPS = 30;
 // Possible movement directions (including idle)

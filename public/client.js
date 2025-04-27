@@ -241,7 +241,7 @@ socket.on('enemyJoined', (data) => {
   otherPlayersTarget[`enemy_${data.id}`] = { x: data.x, y: data.y };
   // Notify player of new stage start
   const stageNumber = parseInt(data.id.replace('enemy', ''), 10);
-  showPopup(`階段 ${stageNumber} 開始囉！`);
+  showPopup(`階段 ${stageNumber} 課程導師登場`);
 });
 
 // Enemy moved
@@ -296,7 +296,7 @@ socket.on('gameOver', ({ survivors, restartDelay }) => {
   }
   
   // Tailor message: survivors (kept smile face) vs. others (infected with thinking/angry/money faces)
-  let message = `課程將於 ${restartDelay/1000} 秒後自動重啟`;
+  let message = `課程將於 ${restartDelay/1000} 秒後重新開始`;
   // Include the player's final emoji in large size above the message
   const playerEmoji = (players[myId] && players[myId].emoji) || DEFAULT_EMOJI;
   popup.innerHTML = `<div style="font-size:64px; line-height:1">${playerEmoji}</div>` + message;
@@ -513,9 +513,28 @@ function draw() {
 // Update sidebar with current stage and emoji counts
 function updateSidebar() {
   // Stage is number of enemies spawned (1 to 3)
-  const stage = Object.keys(enemies).length;
+  const stage = Object.keys(enemies).length || 1; // Default to stage 1 if no enemies
   const stageEl = document.getElementById('stage');
   if (stageEl) stageEl.textContent = stage;
+  
+  // Update stage name based on current stage
+  const stageNameEl = document.getElementById('stage-name');
+  if (stageNameEl) {
+    switch (stage) {
+      case 1:
+        stageNameEl.textContent = '自我懷疑';
+        break;
+      case 2:
+        stageNameEl.textContent = '崩潰暴怒';
+        break;
+      case 3:
+        stageNameEl.textContent = '推銷課程';
+        break;
+      default:
+        stageNameEl.textContent = '自我懷疑';
+    }
+  }
+  
   // Count players and enemies by emoji
   const counts = {};
   ['😊','🤔','😡','🤑'].forEach(e => { counts[e] = 0; });
